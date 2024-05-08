@@ -21,8 +21,12 @@ from cmem_plugin_loopwf import exceptions
 from cmem_plugin_loopwf.workflow_type import SuitableWorkflowParameterType
 
 DOCUMENTATION = """This workflow task operates on a list of incoming entities
-and starts a separated workflow for each entity. The started workflow needs to
-have a replaceable JSON dataset as input.
+and sequentially starts a single "inner" workflow for each entity.
+In case one "inner" workflow fails, the execution is stopped with an error.
+In this case the error message can be seen in the Activities view
+(see `Execute with payload of [inner workflow name]`).
+
+The started workflow needs to have a replaceable JSON dataset as input.
 
 Current notes and limitations:
 
