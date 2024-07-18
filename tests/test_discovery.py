@@ -1,4 +1,5 @@
 """Test discover plugin"""
+
 from cmem_plugin_base.dataintegration.discovery import discover_plugins
 
 

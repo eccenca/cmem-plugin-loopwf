@@ -1,4 +1,5 @@
 """Random values workflow plugin module"""
+
 import json
 from collections.abc import Sequence
 from pathlib import Path

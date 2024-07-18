@@ -1,4 +1,5 @@
 """pytest configuration."""
+
 import json
 from collections.abc import Generator
 from dataclasses import dataclass
