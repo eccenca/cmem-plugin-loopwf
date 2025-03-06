@@ -1,1 +1,1 @@
-"""loopwf - main package"""
+"""cmem-plugin-loopwf"""
