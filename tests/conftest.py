@@ -37,7 +37,7 @@ class FixtureProjectData:
 
 
 @needs_cmem
-@pytest.fixture()
+@pytest.fixture
 def loopwf_project() -> Generator[FixtureProjectData, Any, None]:
     """Provide the loopwf project"""
     data = FixtureProjectData()
@@ -55,7 +55,7 @@ def loopwf_project() -> Generator[FixtureProjectData, Any, None]:
     assert data.graph_iri not in cmemc("graph", "list", "--id-only").output
 
 
-@pytest.fixture()
+@pytest.fixture
 def entities_json() -> Entities:
     """Provide entities.json as entities fixture"""
     return build_entities_from_data(
@@ -63,7 +63,7 @@ def entities_json() -> Entities:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def bad_entities_json() -> Entities:
     """Provide entities.json as entities fixture"""
     return build_entities_from_data(
