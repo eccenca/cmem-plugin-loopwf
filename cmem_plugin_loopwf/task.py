@@ -16,6 +16,7 @@ from cmem_plugin_base.dataintegration.entity import (
 )
 from cmem_plugin_base.dataintegration.plugins import WorkflowPlugin
 from cmem_plugin_base.dataintegration.ports import FixedNumberOfInputs, FlexibleSchemaPort
+from cmem_plugin_base.dataintegration.types import BoolParameterType
 from cmem_plugin_base.dataintegration.utils import setup_cmempy_user_access
 
 from cmem_plugin_loopwf import exceptions
@@ -50,6 +51,12 @@ Current notes and limitations:
             param_type=SuitableWorkflowParameterType(),
             description="Which workflow do you want to start per entity.",
         ),
+        PluginParameter(
+            name="forward_entities",
+            label="Forward incoming entities to the output port?",
+            param_type=BoolParameterType(),
+            default_value=False,
+        ),
     ],
 )
 class StartWorkflow(WorkflowPlugin):
@@ -58,17 +65,18 @@ class StartWorkflow(WorkflowPlugin):
     context: ExecutionContext
     schema: EntitySchema
 
-    def __init__(self, workflow: str) -> None:
+    def __init__(self, workflow: str, forward_entities: bool = False) -> None:
         self.workflow = workflow
+        self.forward_entities = forward_entities
         self.input_ports = FixedNumberOfInputs([FlexibleSchemaPort()])
-        self.output_port = None
+        self.output_port = FlexibleSchemaPort() if forward_entities else None
         self.workflows_started = 0
 
     def execute(
         self,
         inputs: Sequence[Entities],
         context: ExecutionContext,
-    ) -> None:
+    ) -> Entities | None:
         """Run the workflow operator."""
         self.log.info("Start execute")
         self.context = context
@@ -76,10 +84,16 @@ class StartWorkflow(WorkflowPlugin):
         self.schema = inputs[0].schema
         self.validate_workflow(workflow=self.workflow)
 
+        output_entities = []
         for entity in inputs[0].entities:
             self.start_workflow(entity=entity)
+            output_entities.append(entity)
 
-        self.log.info("Stop execute")
+        if self.forward_entities:
+            self.log.info("All done ... forward entities")
+            return Entities(entities=iter(output_entities), schema=self.schema)
+        self.log.info("All done ...")
+        return None
 
     @staticmethod
     def validate_inputs(inputs: Sequence[Entities]) -> None:
