@@ -4,6 +4,7 @@ from copy import deepcopy
 
 import pytest
 from cmem_plugin_base.dataintegration.entity import Entities
+from cmem_plugin_base.dataintegration.utils.entity_builder import build_entities_from_data
 
 from cmem_plugin_loopwf import exceptions
 from cmem_plugin_loopwf.task import StartWorkflow
@@ -21,7 +22,7 @@ def test_entity_to_dict(entities_json: Entities) -> None:
 
 
 @needs_cmem
-def test_task(loopwf_project: FixtureProjectData, entities_json: Entities) -> None:
+def test_execution(loopwf_project: FixtureProjectData, entities_json: Entities) -> None:
     """Test init and list"""
     input_entities = list(deepcopy(entities_json.entities))  # keep a copy to compare later
     task = StartWorkflow(workflow=loopwf_project.workflow_id, forward_entities=True)
@@ -57,3 +58,11 @@ def test_task_errors(
     task_not_there = StartWorkflow(workflow="not-there")
     with pytest.raises(exceptions.NoSuitableWorkflowError):
         task_not_there.execute(context=loopwf_project.execution_context, inputs=[entities_json])
+
+
+@needs_cmem
+def test_async_execution(loopwf_project: FixtureProjectData) -> None:
+    """Test async execution"""
+    entities = build_entities_from_data([{"label": f"Entity {x}"} for x in range(50)])
+    task = StartWorkflow(workflow=loopwf_project.workflow_id, parallel_execution=10)
+    task.execute(context=loopwf_project.execution_context, inputs=[entities])

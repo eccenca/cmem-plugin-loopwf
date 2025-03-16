@@ -10,6 +10,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 - `forward_entities` parameter
   - allow to forward incoming entities to the output port
+- `parallel_execution` paramter
+  - allow to execute X workflows in parallel
 
 ## [0.5.1] 2024-05-08
 
