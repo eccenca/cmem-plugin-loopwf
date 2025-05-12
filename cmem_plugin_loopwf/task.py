@@ -131,7 +131,7 @@ class WorkflowExecutionList:
     def execute(self, parallel_execution: int) -> None:
         """Execute all workflow executions"""
         while self.queued > 0:
-            while self.running < parallel_execution:
+            while self.running < parallel_execution and self.queued > 0:
                 self.start_next()
             self.report()
             self.wait_until_finished()
@@ -140,9 +140,9 @@ class WorkflowExecutionList:
     def start_next(self) -> bool:
         """Start next workflow execution in queue"""
         all_queued = [_ for _ in self.statuses if _.is_queued]
-        next_in_queue: WorkflowExecution = all_queued[0]
         if not all_queued:
             return False
+        next_in_queue: WorkflowExecution = all_queued[0]
         return next_in_queue.start()
 
     def wait_until_finished(self, polling_time: int = 1) -> None:
