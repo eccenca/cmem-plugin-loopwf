@@ -4,15 +4,18 @@ import json
 from collections.abc import Generator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from click.testing import CliRunner, Result
 from cmem_cmemc import cli
-from cmem_plugin_base.dataintegration.entity import Entities
+from cmem_plugin_base.dataintegration.entity import Entities, Entity, EntityPath, EntitySchema
 from cmem_plugin_base.dataintegration.utils.entity_builder import build_entities_from_data
 
-from tests.utils import needs_cmem
+from tests.utils import TestExecutionContext, needs_cmem
+
+if TYPE_CHECKING:
+    from cmem_plugin_base.dataintegration.context import ExecutionContext
 
 FIXTURE_DIR: Path = Path(__file__).parent / "fixtures"
 RUNNER = CliRunner()
@@ -34,6 +37,11 @@ class FixtureProjectData:
     outer_workflow_id: str = "run"
     task_id: str = "StartWorkflowperEntity_567a764bfe0f7faf"
     graph_iri: str = "https://example.org/graph/"
+
+    def __init__(self) -> None:
+        self.execution_context: ExecutionContext = TestExecutionContext(
+            project_id=self.project_id, task_id=self.task_id
+        )
 
 
 @needs_cmem
@@ -60,6 +68,15 @@ def entities_json() -> Entities:
     """Provide entities.json as entities fixture"""
     return build_entities_from_data(
         json.loads(Path(FIXTURE_DIR / "entities.json").read_text()),
+    )
+
+
+@pytest.fixture
+def broken_entities() -> Entities:
+    """Provide broken entities fixture"""
+    return Entities(
+        schema=EntitySchema(type_uri="", paths=[EntityPath("key")]),
+        entities=iter([Entity(uri="", values=[["value1", "value2"]])]),
     )
 
 

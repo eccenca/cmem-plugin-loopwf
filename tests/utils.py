@@ -11,6 +11,7 @@ import pytest
 # check for cmem environment and skip if not present
 from cmem.cmempy.api import get_token
 from cmem.cmempy.config import get_oauth_default_credentials
+from cmem.cmempy.queries import SparqlQuery
 from cmem_plugin_base.dataintegration.context import (
     ExecutionContext,
     PluginContext,
@@ -72,3 +73,20 @@ class TestExecutionContext(ExecutionContext):
         self.report = ReportContext()
         self.task = TestTaskContext(project_id=project_id, task_id=task_id)
         self.user = TestUserContext()
+
+
+def number_of_concepts() -> int:
+    """Return number of concepts
+
+    Assumption: each workflow gets only one entity (path = label) which is
+    transformed into a single concept
+    """
+    query_str = """PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+SELECT DISTINCT (COUNT(?concept) AS ?concepts)
+FROM <https://example.org/graph/>
+WHERE {
+  ?concept a skos:Concept
+}"""
+    query = SparqlQuery(query_type="SELECT", text=query_str)
+    result = query.get_json_results()
+    return int(result["results"]["bindings"][0]["concepts"]["value"])

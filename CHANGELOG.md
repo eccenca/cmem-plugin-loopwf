@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/) and this project adheres to [Semantic Versioning](https://semver.org/)
 
+## [Unreleased]
+
+### Added
+
+- `forward_entities` parameter
+  - allow to forward incoming entities to the output port
+- `parallel_execution` parameter
+  - allow to execute X workflows in parallel
+
 ## [0.5.1] 2024-05-08
 
 ### Added
@@ -16,4 +25,3 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 ### Added
 
 - initial version
-
