@@ -30,6 +30,8 @@ def execution_fixture(loopwf_project: FixtureProjectData) -> WorkflowExecutionFi
         [{"label": f"Entity {x}"} for x in range(number_of_workflows)]
     )
     executions = WorkflowExecutionList()
+    executions.context = TestExecutionContext()
+    executions.logger = PluginLogger()
     for entity in input_entities.entities:
         new_execution = WorkflowExecution(
             task_id=loopwf_project.workflow_id,
@@ -62,13 +64,10 @@ def test_start_x_workflow(execution_fixture: WorkflowExecutionFixture) -> None:
     assert executions.running == 0
     assert number_of_concepts() == 0
 
-    started_workflows = 0
-    while executions.queued > 0:
-        while executions.start_next():
-            started_workflows += 1
-        executions.wait_until_finished()
+    executions.execute(parallel_execution=6)
+
     assert number_of_workflows == executions.queued + executions.finished + executions.running
     assert executions.queued == 0
-    assert executions.finished == number_of_workflows == started_workflows
+    assert executions.finished == number_of_workflows
     assert executions.running == 0
-    assert number_of_concepts() == number_of_workflows == started_workflows == executions.finished
+    assert number_of_concepts() == number_of_workflows == executions.finished
