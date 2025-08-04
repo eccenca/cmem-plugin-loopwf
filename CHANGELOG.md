@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD012 MD013 MD024 MD033 -->
 # Change Log
 
 All notable changes to this project will be documented in this file.
@@ -12,6 +13,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
   - allow to forward incoming entities to the output port
 - `parallel_execution` parameter
   - allow to execute X workflows in parallel
+- `input_mime_type` parameter (beta, advanced)
+  - When working with file entities, this enables io execution
+
 
 ## [0.5.1] 2024-05-08
 

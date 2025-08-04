@@ -7,7 +7,7 @@ from http import HTTPStatus
 from time import sleep
 
 from cmem.cmempy.api import config, get_json
-from cmem.cmempy.workflow.workflow import get_workflows_io
+from cmem.cmempy.workflow.workflow import execute_workflow_io, get_workflows_io
 from cmem_plugin_base.dataintegration.context import ExecutionContext, ExecutionReport
 from cmem_plugin_base.dataintegration.description import Icon, Plugin, PluginParameter
 from cmem_plugin_base.dataintegration.entity import (
@@ -18,7 +18,12 @@ from cmem_plugin_base.dataintegration.entity import (
 )
 from cmem_plugin_base.dataintegration.plugins import PluginLogger, WorkflowPlugin
 from cmem_plugin_base.dataintegration.ports import FixedNumberOfInputs, FlexibleSchemaPort
-from cmem_plugin_base.dataintegration.types import BoolParameterType, IntParameterType
+from cmem_plugin_base.dataintegration.typed_entities.file import FileEntitySchema
+from cmem_plugin_base.dataintegration.types import (
+    BoolParameterType,
+    IntParameterType,
+    StringParameterType,
+)
 from cmem_plugin_base.dataintegration.utils import setup_cmempy_user_access
 from requests import HTTPError
 
@@ -56,10 +61,11 @@ class WorkflowExecution:
     raw: dict[str, str] | None = None
     execution_context: ExecutionContext | None = None
     logger: PluginLogger | None = None
+    input_mime_type: str = ""
 
     @property
     def is_finished(self) -> bool:
-        """True if workflow is finished"""
+        """True if the workflow is finished"""
         return self.status.upper() == "FINISHED"
 
     @property
@@ -75,8 +81,18 @@ class WorkflowExecution:
     def start(self) -> bool:
         """Start the workflow"""
         if self.logger:
-            self.logger.debug(f"Starting workflow execution: {self.entity_as_json_str()}")
+            self.logger.info(f"Starting workflow execution: {self.entity_as_json_str()}")
         try:
+            if self.schema.type_uri == FileEntitySchema().type_uri and self.input_mime_type != "":
+                response = execute_workflow_io(
+                    project_name=self.project_id,
+                    task_name=self.task_id,
+                    input_file=self.entity.values[0][0],
+                    input_mime_type=self.input_mime_type,
+                )
+                # workflows are NOT executed async at the moment
+                self.status = "FINISHED"
+                return True
             response = get_json(
                 f"{config.get_di_api_endpoint()}/api/workflow/executeAsync/{self.project_id}/{self.task_id}",
                 headers={"Content-Type": "application/json"},
@@ -87,7 +103,7 @@ class WorkflowExecution:
             if error.response.status_code == HTTPStatus.SERVICE_UNAVAILABLE:
                 # 503 - no more execution capacity > no status change
                 return False
-            raise HTTPError from error
+            raise ValueError(str(error)) from error
         self.instance_id = response["instanceId"]
         self.activity_id = response["activityId"]
         self.update()
@@ -138,7 +154,7 @@ class WorkflowExecutionList:
         self.report()
 
     def start_next(self) -> bool:
-        """Start next workflow execution in queue"""
+        """Start the next workflow execution in queue"""
         all_queued = [_ for _ in self.statuses if _.is_queued]
         if not all_queued:
             return False
@@ -162,7 +178,7 @@ class WorkflowExecutionList:
         self.statuses.append(status)
 
     def report(self) -> None:
-        """Report workflow statuses to logger and/or execution report from context"""
+        """Report workflow statuses to the logger and/or execution report from context"""
         line = f"finished ({self.running} running, {self.queued} queued)"
         self.context.report.update(
             ExecutionReport(
@@ -214,6 +230,18 @@ class WorkflowExecutionList:
             param_type=BoolParameterType(),
             default_value=False,
         ),
+        PluginParameter(
+            name="input_mime_type",
+            label="Mime-type for file by file processing (beta)",
+            description="When working with file entities, setting this to a proper value will send"
+            " the file to the"
+            " workflow instead of the meta-data. Examples are: 'application/x-plugin-binaryFile',"
+            " 'application/json', 'application/xml', 'text/csv', 'application/octet-stream' or"
+            " 'application/x-plugin-excel'.",
+            param_type=StringParameterType(),
+            default_value="",
+            advanced=True,
+        ),
     ],
 )
 class StartWorkflow(WorkflowPlugin):
@@ -223,13 +251,18 @@ class StartWorkflow(WorkflowPlugin):
     executions: WorkflowExecutionList
 
     def __init__(
-        self, workflow: str, parallel_execution: int = 1, forward_entities: bool = False
+        self,
+        workflow: str,
+        parallel_execution: int = 1,
+        forward_entities: bool = False,
+        input_mime_type: str = "",
     ) -> None:
         self.workflow = workflow
         if parallel_execution < 1:
             raise ValueError("parallel_execution must be >= 1")
         self.parallel_execution = parallel_execution
         self.forward_entities = forward_entities
+        self.input_mime_type = input_mime_type
         self.input_ports = FixedNumberOfInputs([FlexibleSchemaPort()])
         self.output_port = FlexibleSchemaPort() if forward_entities else None
         self.workflows_started = 0
@@ -250,6 +283,7 @@ class StartWorkflow(WorkflowPlugin):
                 schema=schema,
                 execution_context=self.context,
                 logger=self.log,
+                input_mime_type=self.input_mime_type,
             )
             self.log.info(f"Got new entity: {new_execution.entity_as_json_str()}")
             self.executions.append(new_execution)
@@ -313,5 +347,5 @@ class StartWorkflow(WorkflowPlugin):
         for path, values in zip(schema.paths, entity.values, strict=True):
             if len(values) > 1:
                 raise exceptions.MultipleValuesError(f"Multiple values for entity path {path.path}")
-            entity_dict[path.path] = values[0]
+            entity_dict[path.path] = values[0] if len(values) == 1 else ""
         return entity_dict
