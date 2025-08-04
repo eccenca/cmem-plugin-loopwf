@@ -8,11 +8,10 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 from click.testing import CliRunner, Result
-from cmem_cmemc import cli
+from cmem_cmemc.cli import cli
 from cmem_plugin_base.dataintegration.entity import Entities, Entity, EntityPath, EntitySchema
 from cmem_plugin_base.dataintegration.utils.entity_builder import build_entities_from_data
-
-from tests.utils import TestExecutionContext, needs_cmem
+from cmem_plugin_base.testing import TestExecutionContext
 
 if TYPE_CHECKING:
     from cmem_plugin_base.dataintegration.context import ExecutionContext
@@ -44,7 +43,6 @@ class FixtureProjectData:
         )
 
 
-@needs_cmem
 @pytest.fixture
 def loopwf_project() -> Generator[FixtureProjectData, Any, None]:
     """Provide the loopwf project"""

@@ -6,10 +6,11 @@ import pytest
 from cmem_plugin_base.dataintegration.entity import Entities
 from cmem_plugin_base.dataintegration.plugins import PluginLogger
 from cmem_plugin_base.dataintegration.utils.entity_builder import build_entities_from_data
+from cmem_plugin_base.testing import TestExecutionContext
 
 from cmem_plugin_loopwf.task import WorkflowExecution, WorkflowExecutionList
 from tests.conftest import FixtureProjectData
-from tests.utils import TestExecutionContext, number_of_concepts
+from tests.utils import number_of_concepts
 
 
 @dataclass

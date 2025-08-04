@@ -1,8 +1,10 @@
 """Parameter type tests."""
 
+from cmem_plugin_base.testing import TestPluginContext
+
 from cmem_plugin_loopwf.workflow_type import SuitableWorkflowParameterType
 from tests.conftest import FixtureProjectData
-from tests.utils import TestPluginContext, needs_cmem
+from tests.utils import needs_cmem
 
 
 @needs_cmem
