@@ -31,18 +31,50 @@ from cmem_plugin_loopwf import exceptions
 from cmem_plugin_loopwf.workflow_type import SuitableWorkflowParameterType
 
 DOCUMENTATION = """This workflow task operates on a list of incoming entities
-and sequentially starts a single "inner" workflow for each entity.
-In case one "inner" workflow fails, the execution is stopped with an error.
-In this case the error message can be seen in the Activities view
-(see `Execute with payload of [inner workflow name]`).
+and starts a single "inner" workflow for each entity. The task supports
+both sequential and parallel execution modes.
 
-The started workflow needs to have a replaceable JSON dataset as input.
+## Core Functionality
 
-Current notes and limitations:
+- **Entity Processing**: Converts each input entity to JSON format and passes
+  it to the selected sub-workflow as replaceable input data
+- **Execution Modes**: Supports both sequential (default) and parallel execution
+  with configurable concurrency levels
+- **File Processing (Beta)**: Can process file entities directly by passing file
+  content instead of metadata when `input_mime_type` is configured
+- **Error Handling**: If any inner workflow fails, the entire execution stops
+  with an error. Error details can be seen in the Activities view
+- **Output Control**: Can optionally forward input entities to the output port
 
-- The entities which are the input of the "inner" workflow can not be hierarchic.
-- The replaceable dataset of the "inner" workflow needs to be a JSON dataset.
-- There is no check for circles implemented!
+## Configuration Options
+
+- **Workflow Selection**: Choose from workflows in the current project that have
+  exactly one replaceable input dataset
+- **Parallel Execution**: Control how many workflows run simultaneously (default: 1)
+- **Entity Forwarding**: Choose whether to pass input entities to the output port
+- **MIME Type**: For file processing, specify the content type to send file data
+  instead of metadata (supports formats like JSON, XML, CSV, Excel, etc.)
+
+## Workflow Requirements
+
+The selected inner workflow must:
+- Exist in the same project as this task
+- Have exactly one replaceable input dataset (JSON format)
+- Be designed to handle the entity structure provided by the input
+
+## Current Limitations
+
+- Input entities cannot be hierarchical (flat structure only)
+- The replaceable dataset of the inner workflow must be a JSON dataset
+- No circular dependency detection is implemented
+- File processing feature is in beta and requires proper MIME type configuration
+
+## Use Cases
+
+- **Data Processing Pipelines**: Process each record through a complex workflow
+- **Batch Operations**: Apply transformations to multiple entities individually
+- **Quality Assurance**: Run validation workflows on each data item
+- **Export/Integration**: Process entities through different output workflows
 """
 
 
