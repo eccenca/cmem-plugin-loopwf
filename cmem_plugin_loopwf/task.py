@@ -30,51 +30,59 @@ from requests import HTTPError
 from cmem_plugin_loopwf import exceptions
 from cmem_plugin_loopwf.workflow_type import SuitableWorkflowParameterType
 
-DOCUMENTATION = """This workflow task operates on a list of incoming entities
-and starts a single "inner" workflow for each entity. The task supports
-both sequential and parallel execution modes.
+DOCUMENTATION = """Run another workflow once per incoming entity.
 
-## Core Functionality
+## Overview
 
-- **Entity Processing**: Converts each input entity to JSON format and passes
-  it to the selected sub-workflow as replaceable input data
-- **Execution Modes**: Supports both sequential (default) and parallel execution
-  with configurable concurrency levels
-- **File Processing (Beta)**: Can process file entities directly by passing file
-  content instead of metadata when `input_mime_type` is configured
-- **Error Handling**: If any inner workflow fails, the entire execution stops
-  with an error. Error details can be seen in the Activities view
-- **Output Control**: Can optionally forward input entities to the output port
+- **Per-entity execution**: For every entity on the input port, this task starts one selected sub-workflow.
+- **Execution modes**: Runs sequentially by default or in parallel with a configurable concurrency.
+- **Input handover**: Each entity is converted to a JSON object and provided to the sub-workflow via its single replaceable (variable) input dataset.
+- **Optional pass-through**: Optionally forwards the original input entities to the output port; it never returns results produced by the sub-workflow.
+- **File support (beta)**: When processing file entities and a `input_mime_type` is set, the file content is sent to the sub-workflow instead of the file metadata.
 
-## Configuration Options
+## How It Works
 
-- **Workflow Selection**: Choose from workflows in the current project that have
-  exactly one replaceable input dataset
-- **Parallel Execution**: Control how many workflows run simultaneously (default: 1)
-- **Entity Forwarding**: Choose whether to pass input entities to the output port
-- **MIME Type**: For file processing, specify the content type to send file data
-  instead of metadata (supports formats like JSON, XML, CSV, Excel, etc.)
+1. Read entities from the single input port (flexible schema).
+2. Convert each entity to a flat JSON object using the entity schema (one value per path required).
+3. Start the chosen sub-workflow once per entity, supplying the JSON as the replaceable input dataset.
+4. Run up to `parallel_execution` workflow instances at the same time.
+5. Stop with an error if any sub-workflow fails; see details in Activities.
 
-## Workflow Requirements
+Example entity mapping (illustrative):
+Input schema paths: `label`, `id`  → JSON payload: `{ "label": "Example", "id": "123" }`
 
-The selected inner workflow must:
-- Exist in the same project as this task
-- Have exactly one replaceable input dataset (JSON format)
-- Be designed to handle the entity structure provided by the input
+## Parameters
 
-## Current Limitations
+- **Workflow**: Workflow from the same project that exposes exactly one replaceable (variable) input dataset. That dataset must accept JSON or file content as configured below.
+- **How many workflow jobs should run in parallel?**: Integer ≥ 1. Controls the maximum number of concurrently running sub-workflows.
+- **Forward incoming entities to the output port?**: When enabled, forwards the original input entities. When disabled, produces no output entities.
+- **Mime-type for file by file processing (beta)**: For file entities only. If set (e.g., `application/json`, `application/xml`, `text/csv`, `application/octet-stream`, `application/x-plugin-excel`), the raw file content is sent to the sub-workflow instead of metadata.
 
-- Input entities cannot be hierarchical (flat structure only)
-- The replaceable dataset of the inner workflow must be a JSON dataset
-- No circular dependency detection is implemented
-- File processing feature is in beta and requires proper MIME type configuration
+## Requirements
 
-## Use Cases
+- The selected workflow must be in the same project as this task.
+- The selected workflow must have exactly one replaceable input dataset (also called a variable input).
+- The input entities must be flat: each schema path may have at most one value per entity.
 
-- **Data Processing Pipelines**: Process each record through a complex workflow
-- **Batch Operations**: Apply transformations to multiple entities individually
-- **Quality Assurance**: Run validation workflows on each data item
-- **Export/Integration**: Process entities through different output workflows
+## Limitations
+
+- Nested or multi-valued entities are not supported; multiple values per path raise an error.
+- The replaceable dataset of the sub-workflow must match the provided data type (JSON or file content depending on configuration).
+- No circular dependency detection is performed.
+- File processing is beta; correct `input_mime_type` and a file-accepting dataset in the sub-workflow are required.
+
+## Troubleshooting
+
+- "Need a connected input task": Connect one upstream task to provide entities.
+- "Can process a single input only": Only one input port is supported.
+- "Multiple values for entity path": Ensure each path has at most one value.
+- "Workflow ... does not exist ... or is missing a single replaceable input dataset": Select a workflow in the same project with exactly one variable input.
+
+## Typical Uses
+
+- Per-record processing pipelines (e.g., validation, enrichment, export).
+- Batch operations that require complex per-entity logic encapsulated in a workflow.
+- Quality checks where each entity must pass through a dedicated validation workflow.
 """
 
 
