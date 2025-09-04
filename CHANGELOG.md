@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 ### Fixed
 
 - update cmempy user access token each time a workflow starts
+- update cmempy user access token each time a workflow execution status is updated
 
 
 ## [0.6.0] 2025-08-04

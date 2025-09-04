@@ -160,6 +160,8 @@ class WorkflowExecution:
 
     def update(self) -> None:
         """Update the execution status"""
+        if self.execution_context:
+            setup_cmempy_user_access(context=self.execution_context.user)
         response = get_json(
             f"{config.get_di_api_endpoint()}/workspace/activities/status",
             params={
