@@ -124,6 +124,8 @@ class WorkflowExecution:
         if self.logger:
             self.logger.info(f"Starting workflow execution: {self.entity_as_json_str()}")
         try:
+            if self.execution_context:
+                setup_cmempy_user_access(context=self.execution_context.user)
             if self.schema.type_uri == FileEntitySchema().type_uri and self.input_mime_type != "":
                 response = execute_workflow_io(
                     project_name=self.project_id,
