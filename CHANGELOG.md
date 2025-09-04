@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [Unreleased]
 
+### Added
+
+- extendend documentation
+
 ### Fixed
 
 - update cmempy user access token each time a workflow starts
