@@ -20,16 +20,20 @@ This project uses **Task** (not Make) for build automation. All commands are def
 
 ### Core Components
 
-**cmem_plugin_loopwf/workflow.py** - Main plugin implementation:
-- `LoopWorkflowPlugin` class extends cmem-plugin-base
+**cmem_plugin_loopwf/task.py** - Main plugin implementation:
+- `StartWorkflow` class extends `WorkflowPlugin` from cmem-plugin-base
 - Takes input entities and starts sub-workflow for each entity
-- Uses queue-based execution with configurable parallelism
-- Implements polling-based workflow status monitoring
+- `WorkflowExecution` dataclass manages individual workflow execution status
+- `WorkflowExecutionList` handles queue-based execution with configurable parallelism
+- Implements polling-based workflow status monitoring with async execution
+- Supports both entity metadata and file content processing
 
-**cmem_plugin_loopwf/client.py** - CMEM REST API integration:
-- `CmemClient` handles authentication and API calls
-- User context propagation for enterprise security
-- Project-scoped resource management
+**cmem_plugin_loopwf/workflow_type.py** - Workflow type definitions and utilities:
+- Custom parameter types for workflow selection
+- Dynamic value fetching and autocomplete integration
+
+**cmem_plugin_loopwf/exceptions.py** - Custom exception classes:
+- Plugin-specific error handling and exception types
 
 ### Key Patterns
 
@@ -42,11 +46,18 @@ This project uses **Task** (not Make) for build automation. All commands are def
 
 ```
 cmem_plugin_loopwf/
-├── workflow.py     # Main plugin logic
-├── client.py       # CMEM API client  
-├── model.py        # Data models and types
-└── __init__.py     # Plugin registration
-tests/              # Unit and integration tests
+├── task.py           # Main plugin logic
+├── workflow_type.py  # Workflow type definitions and utilities
+├── exceptions.py     # Custom exception classes
+├── loopwf.svg       # Plugin icon
+└── __init__.py      # Plugin registration
+tests/               # Unit and integration tests
+├── conftest.py      # Test configuration
+├── test_task.py     # Task plugin tests
+├── test_discovery.py        # Plugin discovery tests
+├── test_workflow_type.py    # Workflow type tests
+├── test_workflow_execution_list.py  # Execution list tests
+└── utils.py         # Test utilities
 ```
 
 ## Development Workflow
@@ -70,6 +81,9 @@ tests/              # Unit and integration tests
 
 ### CMEM Integration
 - Plugin outputs must be compatible with CMEM's RDF/entity model
-- Use `cmempy` library for CMEM API interactions
-- Authentication handled through user context propagation
+- Uses `cmempy` library for CMEM API interactions (config, get_json, execute_workflow_io, get_workflows_io)
+- Authentication handled through user context propagation via `setup_cmempy_user_access`
 - All operations are project-scoped within CMEM instance
+- Supports async workflow execution via `/api/workflow/executeAsync` endpoint
+- Entity conversion to JSON for workflow input via replaceable datasets
+- File processing support with configurable MIME types for file-to-workflow scenarios
