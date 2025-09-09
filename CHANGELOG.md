@@ -9,6 +9,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ### Added
 
+- allow to cancel the workflow
+
+## [0.7.0]
+
+### Added
+
 - extendend documentation
 
 ### Fixed
