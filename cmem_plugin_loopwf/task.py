@@ -160,6 +160,8 @@ class WorkflowExecution:
 
     def update(self) -> None:
         """Update the execution status"""
+        if self.execution_context:
+            setup_cmempy_user_access(context=self.execution_context.user)
         response = get_json(
             f"{config.get_di_api_endpoint()}/workspace/activities/status",
             params={
@@ -189,11 +191,13 @@ class WorkflowExecutionList:
 
     def execute(self, parallel_execution: int) -> None:
         """Execute all workflow executions"""
-        while self.queued > 0:
-            while self.running < parallel_execution and self.queued > 0:
+        while self.queued > 0 and not self.is_canceling():
+            while self.running < parallel_execution and self.queued > 0 and not self.is_canceling():
                 self.start_next()
             self.report()
             self.wait_until_finished()
+        if self.is_canceling():
+            self.logger.info("Execution canceled - stopping workflow processing")
         self.report()
 
     def start_next(self) -> bool:
@@ -206,9 +210,11 @@ class WorkflowExecutionList:
 
     def wait_until_finished(self, polling_time: int = 1) -> None:
         """Wait until all running workflows are finished"""
-        while self.running > 0:
+        while self.running > 0 and not self.is_canceling():
             sleep(polling_time)
             self.update_running_status()
+        if self.is_canceling():
+            self.logger.info("Cancellation detected during polling - stopping workflow monitoring")
 
     def update_running_status(self) -> None:
         """Update status of running workflows"""
@@ -246,6 +252,13 @@ class WorkflowExecutionList:
     def queued(self) -> int:
         """Returns the number of queued workflows"""
         return len([_ for _ in self.statuses if _.is_queued])
+
+    def is_canceling(self) -> bool:
+        """Check if the workflow execution context is in canceling state"""
+        if self.context and hasattr(self.context, "workflow") and self.context.workflow:
+            status = self.context.workflow.status()
+            return str(status) == "Canceling"
+        return False
 
 
 @Plugin(
