@@ -7,11 +7,17 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [Unreleased]
 
+TODO: add at least one Added, Changed, Deprecated, Removed, Fixed or Security section
+
+
+## [0.8.0] 2025-09-10
+
 ### Added
 
 - allow to cancel the workflow
 
-## [0.7.0]
+
+## [0.7.0] 2025-09-04
 
 ### Added
 
