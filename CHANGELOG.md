@@ -5,9 +5,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/) and this project adheres to [Semantic Versioning](https://semver.org/)
 
-## [Unreleased]
+## [0.9.0] 2025-10-15
 
-TODO: add at least one Added, Changed, Deprecated, Removed, Fixed or Security section
+### Changed
+
+- Update of dependencies and template
+- validation of python 3.13 compatibility
+- python 3.13 required
 
 
 ## [0.8.0] 2025-09-10
