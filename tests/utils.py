@@ -1,9 +1,11 @@
 """utils"""
 
+import json
 from os import environ
 
 import pytest
-from cmem.cmempy.queries import SparqlQuery
+from cmem_client.client import Client
+from cmem_plugin_base.testing import TestExecutionContext
 
 needs_cmem = pytest.mark.skipif(
     environ.get("CMEM_BASE_URI", "") == "", reason="Needs CMEM configuration"
@@ -22,6 +24,8 @@ FROM <https://example.org/graph/>
 WHERE {
   ?concept a skos:Concept
 }"""
-    query = SparqlQuery(query_type="SELECT", text=query_str)
-    result = query.get_json_results()
+    client = Client.from_context(context=TestExecutionContext())
+    result = json.loads(
+        client.queries.execute_query(query=query_str, accept="application/sparql-results+json")
+    )
     return int(result["results"]["bindings"][0]["concepts"]["value"])

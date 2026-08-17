@@ -6,8 +6,7 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from time import sleep
 
-from cmem.cmempy.api import config, get_json
-from cmem.cmempy.workflow.workflow import execute_workflow_io, get_workflows_io
+from cmem_client.client import Client
 from cmem_plugin_base.dataintegration.context import ExecutionContext, ExecutionReport
 from cmem_plugin_base.dataintegration.description import Icon, Plugin, PluginParameter
 from cmem_plugin_base.dataintegration.entity import (
@@ -24,8 +23,7 @@ from cmem_plugin_base.dataintegration.types import (
     IntParameterType,
     StringParameterType,
 )
-from cmem_plugin_base.dataintegration.utils import setup_cmempy_user_access
-from requests import HTTPError
+from httpx import HTTPStatusError
 
 from cmem_plugin_loopwf import exceptions
 from cmem_plugin_loopwf.workflow_type import SuitableWorkflowParameterType
@@ -103,6 +101,24 @@ class WorkflowExecution:
     execution_context: ExecutionContext | None = None
     logger: PluginLogger | None = None
     input_mime_type: str = ""
+    client: Client | None = None
+
+    @property
+    def workflow_id(self) -> str:
+        """The ID of the started workflow in the form of 'project_id:task_id'"""
+        return f"{self.project_id}:{self.task_id}"
+
+    def get_client(self) -> Client:
+        """Get the client to talk to Corporate Memory
+
+        Falls back to a client created from the execution context, so a single client
+        can be shared by all executions of a run.
+        """
+        if self.client is None:
+            if self.execution_context is None:
+                raise ValueError("Need a client or an execution context to start a workflow.")
+            self.client = Client.from_context(context=self.execution_context)
+        return self.client
 
     @property
     def is_finished(self) -> bool:
@@ -123,33 +139,48 @@ class WorkflowExecution:
         """Start the workflow"""
         if self.logger:
             self.logger.info(f"Starting workflow execution: {self.entity_as_json_str()}")
+        client = self.get_client()
+        if self.schema.type_uri == FileEntitySchema().type_uri and self.input_mime_type != "":
+            return self.start_with_file(client=client)
+        url = (
+            client.config.url_build_api
+            / "api/workflow/executeAsync"
+            / self.project_id
+            / self.task_id
+        )
         try:
-            if self.execution_context:
-                setup_cmempy_user_access(context=self.execution_context.user)
-            if self.schema.type_uri == FileEntitySchema().type_uri and self.input_mime_type != "":
-                response = execute_workflow_io(
-                    project_name=self.project_id,
-                    task_name=self.task_id,
-                    input_file=self.entity.values[0][0],
-                    input_mime_type=self.input_mime_type,
-                )
-                # workflows are NOT executed async at the moment
-                self.status = "FINISHED"
-                return True
-            response = get_json(
-                f"{config.get_di_api_endpoint()}/api/workflow/executeAsync/{self.project_id}/{self.task_id}",
+            response = client.http.post(
+                url,
                 headers={"Content-Type": "application/json"},
-                method="POST",
-                data=self.entity_as_json_str(),
+                content=self.entity_as_json_str(),
             )
-        except HTTPError as error:
+            response.raise_for_status()
+        except HTTPStatusError as error:
             if error.response.status_code == HTTPStatus.SERVICE_UNAVAILABLE:
                 # 503 - no more execution capacity > no status change
                 return False
             raise ValueError(str(error)) from error
-        self.instance_id = response["instanceId"]
-        self.activity_id = response["activityId"]
+        started = response.json()
+        self.instance_id = started["instanceId"]
+        self.activity_id = started["activityId"]
         self.update()
+        return True
+
+    def start_with_file(self, client: Client) -> bool:
+        """Start the workflow by sending the file of a file entity to it"""
+        with client.workflows.execute_io(
+            workflow_id=self.workflow_id,
+            input_file=self.entity.values[0][0],
+            input_mime_type=self.input_mime_type,
+        ) as response:
+            response.read()
+        if response.status_code == HTTPStatus.SERVICE_UNAVAILABLE:
+            # 503 - no more execution capacity > no status change
+            return False
+        if not response.is_success:
+            raise ValueError(f"{response.status_code} {response.reason_phrase}: {response.text}")
+        # workflows are NOT executed async at the moment
+        self.status = "FINISHED"
         return True
 
     def wait_until_finished(self) -> None:
@@ -160,10 +191,9 @@ class WorkflowExecution:
 
     def update(self) -> None:
         """Update the execution status"""
-        if self.execution_context:
-            setup_cmempy_user_access(context=self.execution_context.user)
-        response = get_json(
-            f"{config.get_di_api_endpoint()}/workspace/activities/status",
+        client = self.get_client()
+        response = client.http.get(
+            client.config.url_build_api / "workspace/activities/status",
             params={
                 "project": self.project_id,
                 "task": self.task_id,
@@ -171,9 +201,11 @@ class WorkflowExecution:
                 "instance": self.instance_id,
             },
         )
-        self.status = response["statusName"]
-        self.is_running = response["isRunning"]
-        self.raw = response
+        response.raise_for_status()
+        status = response.json()
+        self.status = status["statusName"]
+        self.is_running = status["isRunning"]
+        self.raw = status
         if self.logger:
             self.logger.debug(f"Updated Status: {self!s}")
 
@@ -304,6 +336,7 @@ class StartWorkflow(WorkflowPlugin):
     """Start Workflow per Entity"""
 
     context: ExecutionContext
+    client: Client
     executions: WorkflowExecutionList
 
     def __init__(
@@ -340,6 +373,7 @@ class StartWorkflow(WorkflowPlugin):
                 execution_context=self.context,
                 logger=self.log,
                 input_mime_type=self.input_mime_type,
+                client=self.client,
             )
             self.log.info(f"Got new entity: {new_execution.entity_as_json_str()}")
             self.executions.append(new_execution)
@@ -360,6 +394,7 @@ class StartWorkflow(WorkflowPlugin):
         """Run the workflow operator."""
         self.log.info("Start execute")
         self.context = context
+        self.client = Client.from_context(context=context)
         self.validate_inputs(inputs=inputs)
         self.validate_workflow(workflow=self.workflow)
         output_entities = self.start_workflows(inputs=inputs)
@@ -381,12 +416,9 @@ class StartWorkflow(WorkflowPlugin):
     def validate_workflow(self, workflow: str) -> None:
         """Validate a workflow (ID)"""
         current_project = self.context.task.project_id()
-        setup_cmempy_user_access(context=self.context.user)
-        suitable_workflows: dict[str, dict] = {
-            f"{_['id']}": _
-            for _ in get_workflows_io()
-            if self.context.task.project_id() == _["projectId"] and len(_["variableInputs"]) == 1
-        }
+        suitable_workflows = SuitableWorkflowParameterType.get_suitable_workflows(
+            client=self.client, project_id=current_project
+        )
         if workflow not in suitable_workflows:
             raise exceptions.NoSuitableWorkflowError(
                 f"Workflow '{workflow}' does not exist in project '{current_project}'"
