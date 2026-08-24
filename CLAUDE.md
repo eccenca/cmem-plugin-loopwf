@@ -15,6 +15,9 @@ This project uses **Task** (not Make) for build automation. All commands are def
 - `task build` - Build wheel package with poetry
 - `task install` - Install package in development mode
 - `task pre-commit` - Install pre-commit hooks
+- `task clean` - Remove dist, pyc files, and caches
+- `task format:fix` - Format code and apply safe auto-fixes
+- `task uninstall` - Uninstall plugin from CMEM instance
 
 ## Architecture Overview
 
@@ -41,6 +44,7 @@ This project uses **Task** (not Make) for build automation. All commands are def
 - **Decorator-Based Registration**: Plugins use `@Plugin` decorator from cmem-plugin-base
 - **Autocomplete Integration**: Custom parameter types with dynamic value fetching
 - **Async Workflow Execution**: Non-blocking workflow starts with status polling
+- **Direct HTTP API Calls**: Uses `cmem-client` and `httpx` directly
 
 ### Project Structure
 
@@ -81,8 +85,7 @@ tests/               # Unit and integration tests
 
 ### CMEM Integration
 - Plugin outputs must be compatible with CMEM's RDF/entity model
-- Uses `cmempy` library for CMEM API interactions (config, get_json, execute_workflow_io, get_workflows_io)
-- Authentication handled through user context propagation via `setup_cmempy_user_access`
+- Uses `cmem-client` and `httpx` directly for CMEM API interactions
 - All operations are project-scoped within CMEM instance
 - Supports async workflow execution via `/api/workflow/executeAsync` endpoint
 - Entity conversion to JSON for workflow input via replaceable datasets

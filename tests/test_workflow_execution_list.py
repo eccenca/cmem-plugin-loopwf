@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 import pytest
+from cmem_client.client import Client
 from cmem_plugin_base.dataintegration.entity import Entities
 from cmem_plugin_base.dataintegration.plugins import PluginLogger
 from cmem_plugin_base.dataintegration.utils.entity_builder import build_entities_from_data
@@ -33,16 +34,20 @@ def execution_fixture(loopwf_project: FixtureProjectData) -> WorkflowExecutionFi
     executions = WorkflowExecutionList()
     executions.context = TestExecutionContext()
     executions.logger = PluginLogger()
+    execution_context = TestExecutionContext(
+        project_id=loopwf_project.project_id, task_id=loopwf_project.workflow_id
+    )
+    # all executions share a single client, same as in the plugin
+    client = Client.from_context(context=execution_context)
     for entity in input_entities.entities:
         new_execution = WorkflowExecution(
             task_id=loopwf_project.workflow_id,
             project_id=loopwf_project.project_id,
             entity=entity,
             schema=input_entities.schema,
-            execution_context=TestExecutionContext(
-                project_id=loopwf_project.project_id, task_id=loopwf_project.workflow_id
-            ),
+            execution_context=execution_context,
             logger=PluginLogger(),
+            client=client,
         )
         executions.append(new_execution)
 

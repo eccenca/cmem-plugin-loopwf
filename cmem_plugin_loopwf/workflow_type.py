@@ -4,13 +4,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from cmem.cmempy.workflow.workflow import get_workflows_io
-from cmem.cmempy.workspace.tasks import get_task
+from cmem_client.client import Client
 from cmem_plugin_base.dataintegration.types import Autocompletion, StringParameterType
-from cmem_plugin_base.dataintegration.utils import setup_cmempy_user_access
 
 if TYPE_CHECKING:
+    from cmem_client.models.workflow import Workflow
     from cmem_plugin_base.dataintegration.context import PluginContext
+
+
+def workflow_label(workflow: Workflow) -> str:
+    """Get the display label of a workflow"""
+    return f"{workflow.label} ({workflow.id})"
 
 
 class SuitableWorkflowParameterType(StringParameterType):
@@ -27,19 +31,19 @@ class SuitableWorkflowParameterType(StringParameterType):
         context: PluginContext,
     ) -> str | None:
         """Return the label for the given workflow ID"""
-        setup_cmempy_user_access(context.user)
-        task = get_task(project=context.project_id, task=value)
-        identifier = task["id"]
-        title = str(task["metadata"]["label"])
-        return f"{title} ({identifier})"
+        workflows = self.get_suitable_workflows(
+            client=Client.from_context(context=context), project_id=context.project_id
+        )
+        workflow = workflows.get(value)
+        return workflow_label(workflow) if workflow else None
 
     @staticmethod
-    def get_suitable_workflows(project_id: str) -> dict[str, dict]:
+    def get_suitable_workflows(client: Client, project_id: str) -> dict[str, Workflow]:
         """Get all suitable workflows for a given project"""
         return {
-            f"{_['id']}": _
-            for _ in get_workflows_io()
-            if project_id == _["projectId"] and len(_["variableInputs"]) == 1
+            _.id: _
+            for _ in client.workflows.values()
+            if project_id == _.project_id and len(_.variable_inputs) == 1
         }
 
     def autocomplete(
@@ -52,18 +56,18 @@ class SuitableWorkflowParameterType(StringParameterType):
 
         Returns all workflow IDs that match ALL provided query terms.
         """
-        setup_cmempy_user_access(context.user)
+        workflows = self.get_suitable_workflows(
+            client=Client.from_context(context=context), project_id=context.project_id
+        )
         result = []
-        for _ in self.get_suitable_workflows(project_id=context.project_id).values():
-            identifier = _["id"]
-            title = _["label"]
-            label = f"{title} ({identifier})"
+        for _ in workflows.values():
+            label = workflow_label(_)
             if len(query_terms) == 0:
-                result.append(Autocompletion(value=identifier, label=label))
+                result.append(Autocompletion(value=_.id, label=label))
                 continue
             for term in query_terms:
                 if term.lower() in label.lower():
-                    result.append(Autocompletion(value=identifier, label=label))
+                    result.append(Autocompletion(value=_.id, label=label))
                     continue
         result.sort(key=lambda x: x.label)
         return list(set(result))

@@ -44,7 +44,7 @@ class FixtureProjectData:
 
 
 @pytest.fixture
-def loopwf_project() -> Generator[FixtureProjectData, Any, None]:
+def loopwf_project() -> Generator[FixtureProjectData, Any]:
     """Provide the loopwf project"""
     data = FixtureProjectData()
     result = cmemc("project", "import", "--overwrite", FIXTURE_DIR / "loopwf.project.zip")
