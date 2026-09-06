@@ -47,7 +47,7 @@ class FixtureProjectData:
 def loopwf_project() -> Generator[FixtureProjectData, Any]:
     """Provide the loopwf project"""
     data = FixtureProjectData()
-    result = cmemc("project", "import", "--overwrite", FIXTURE_DIR / "loopwf.project.zip")
+    result = cmemc("project", "import", "--replace", FIXTURE_DIR / "loopwf.project.zip")
     assert result.exit_code == 0
     projects = cmemc("project", "list", "--id-only").output
     assert data.project_id in projects
